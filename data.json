@@ -1,0 +1,26 @@
+{
+  "lastId": 5,
+  "posts": [
+    {
+      "id": 2,
+      "title": "My update Post",
+      "description": "This is the description of my  post",
+      "author": "BATOUL",
+      "date": "2024-10-05T20:14:27.385Z"
+    },
+    {
+      "id": 4,
+      "title": "My  Post",
+      "description": "This is the description of my  post",
+      "author": "Batoul",
+      "date": "2024-10-05T20:17:09.772Z"
+    },
+    {
+      "id": 5,
+      "title": "My new Post2",
+      "description": "This is the description of my new post2 ",
+      "author": "Batoul",
+      "date": "2024-10-05T20:48:52.830Z"
+    }
+  ]
+}
