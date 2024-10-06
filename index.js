@@ -1,70 +1,125 @@
-const express = require("express");
 const fs = require("fs");
+const express = require("express");
 const app = express();
 
 app.use(express.json());
 
-const getData = () => {
-  const data = fs.readFileSync("data.json");
-  return JSON.parse(data);
-};
+const dataFilePath = "data.json";
 
-const saveData = (data) => {
-  fs.writeFileSync("data.json", JSON.stringify(data, null, 2));
-};
+function readDataFromFile(callback) {
+  fs.readFile(dataFilePath, "utf8", (err, data) => {
+    if (err) {
+      console.error(err);
+      return callback({ lastId: 0, posts: [] });
+    }
+    callback(JSON.parse(data));
+  });
+}
 
-// read
-app.get("/posts", (req, res) => {
-  const data = getData();
-  res.json(data.posts);
+function writeDataToFile(data, callback) {
+  fs.writeFile(dataFilePath, JSON.stringify(data, null, 2), "utf8", (err) => {
+    callback(err);
+  });
+}
+
+app.get("/users", (req, res) => {
+  readDataFromFile((data) => {
+    res.send({ data: data.posts });
+  });
 });
 
-// create
-app.post("/posts", (req, res) => {
-  const data = getData();
-  const newPost = {
-    id: data.lastId + 1,
-    title: req.body.title,
-    description: req.body.description,
-    author: req.body.author,
-    date: new Date().toISOString(),
-  };
+// creat
+app.post("/users", (req, res) => {
+  readDataFromFile((data) => {
+    const { title, description, author } = req.body;
 
-  data.posts.push(newPost);
-  data.lastId += 1;
-  saveData(data);
+    if (!title || !description || !author) {
+      return res.send({
+        message: "Title, description, and author fields are required.",
+      });
+    }
 
-  res.status(201).json(newPost);
+    const newId = data.lastId + 1;
+
+    const newPost = {
+      id: newId,
+      title,
+      description,
+      author,
+      date: new Date().toISOString(),
+    };
+
+    // insert
+    data.posts.push(newPost);
+    data.lastId = newId;
+
+    writeDataToFile(data, (err) => {
+      if (err) {
+        return res.send({ message: "Error saving data." });
+      }
+      res.send({ message: "Post created successfully.", post: newPost });
+    });
+  });
 });
 
 // update
-app.put("/posts/:id", (req, res) => {
-  const data = getData();
-  const postId = parseInt(req.params.id);
-  const postIndex = data.posts.findIndex((post) => post.id === postId);
+app.put("/users/:id", (req, res) => {
+  const id = parseInt(req.params.id);
 
-  if (postIndex !== -1) {
-    data.posts[postIndex] = { ...data.posts[postIndex], ...req.body };
-    saveData(data);
-    res.json(data.posts[postIndex]);
-  } else {
-    res.send({ message: "Post not found" });
-  }
+  readDataFromFile((data) => {
+    const index = data.posts.findIndex((post) => post.id === id);
+
+    if (index === -1) {
+      return res.send({ message: "This post does not exist." });
+    }
+
+    const { title, description, author } = req.body;
+
+    if (!title && !description && !author) {
+      return res.send({
+        message:
+          "At least one field (title, description, or author) is required for update.",
+      });
+    }
+
+    if (title) data.posts[index].title = title;
+    if (description) data.posts[index].description = description;
+    if (author) data.posts[index].author = author;
+
+    writeDataToFile(data, (err) => {
+      if (err) {
+        return res.send({ message: "Error saving data." });
+      }
+      res.send({
+        message: "Post updated successfully.",
+        post: data.posts[index],
+      });
+    });
+  });
 });
 
 // delete
-app.delete("/posts/:id", (req, res) => {
-  const data = getData();
-  const postId = parseInt(req.params.id);
-  const updatedPosts = data.posts.filter((post) => post.id !== postId);
+app.delete("/users/:id", (req, res) => {
+  const id = parseInt(req.params.id);
 
-  if (updatedPosts.length !== data.posts.length) {
-    data.posts = updatedPosts;
-    saveData(data);
-    res.json({ message: "Post deleted" });
-  } else {
-    res.send({ message: "Post not found" });
-  }
+  readDataFromFile((data) => {
+    const index = data.posts.findIndex((post) => post.id === id);
+
+    if (index === -1) {
+      return res.send({ message: "This post does not exist." });
+    }
+
+    const updatedPosts = data.posts.filter((post) => post.id !== id);
+
+    data.posts = updatedPosts; // تحديث قائمة المنشورات
+
+    writeDataToFile(data, (err) => {
+      if (err) {
+        return res.send({ message: "Error deleting data." });
+      }
+      res.send({ message: "Post deleted successfully." });
+    });
+  });
 });
 
 app.listen(3000, () => {
